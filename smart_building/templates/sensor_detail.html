@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="form-page">
+  <a class="small" href="{{ url_for('core.environment',building_id=sensor.building_id) }}">← Environment</a>
+  <div class="card mt-3 mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center"><strong>{{ sensor.sensor_code }} · {{ sensor.sensor_type }}</strong><span class="badge text-bg-{{ metric.condition|status_class }}">{{ metric.condition }}</span></div>
+    <div class="card-body"><dl class="row detail-list mb-0">
+      <dt class="col-sm-4">Building</dt><dd class="col-sm-8">{{ sensor.building_name }}</dd>
+      <dt class="col-sm-4">Location</dt><dd class="col-sm-8">{{ sensor.location }}</dd>
+      <dt class="col-sm-4">Current Reading</dt><dd class="col-sm-8">{% if metric.value is none %}No Reading{% elif sensor.sensor_type=='Air Quality' %}AQI {{ '%.0f'|format(metric.value) }}{% else %}{{ '%.1f'|format(metric.value) }}{{ metric.unit }}{% endif %}</dd>
+      <dt class="col-sm-4">Expected Range</dt><dd class="col-sm-8">{{ metric.expected }}</dd>
+      <dt class="col-sm-4">Condition</dt><dd class="col-sm-8">{{ metric.summary }}</dd>
+      <dt class="col-sm-4">Last Updated</dt><dd class="col-sm-8">{{ metric.recorded_at|localtime }}</dd>
+    </dl></div>
+    {% if metric.problem %}<div class="card-footer d-flex flex-wrap gap-2">
+      {% if maintenance %}<a class="btn btn-primary" href="{{ url_for('core.maintenance_detail',maintenance_id=maintenance.id) }}">View {{ maintenance.request_code }}</a>{% elif g.user.role=='admin' %}<a class="btn btn-primary" href="{{ url_for('admin.maintenance_create',sensor_id=sensor.id) }}">Add to Maintenance</a>{% else %}<form method="post" action="{{ url_for('core.sensor_request_maintenance',sensor_id=sensor.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="priority" value="High"><input type="hidden" name="reason" value="{{ sensor.sensor_code }}: {{ metric.summary }}"><button class="btn btn-primary">Request Maintenance</button></form>{% endif %}
+    </div>{% endif %}
+  </div>
+  <div class="card"><div class="card-header"><strong>Recent Reading History</strong></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Date / Time</th><th>Reading</th></tr></thead><tbody>{% for reading in readings %}<tr><td>{{ reading.recorded_at|localtime }}</td><td>{% set value=reading[{'Temperature':'temperature','Humidity':'humidity','Air Quality':'air_quality','Energy':'energy_usage'}[sensor.sensor_type]] %}{% if sensor.sensor_type=='Air Quality' %}AQI {{ '%.0f'|format(value) }}{% else %}{{ '%.1f'|format(value) }}{{ metric.unit }}{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

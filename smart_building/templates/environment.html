@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <form method="get">
+    <select class="form-select form-select-sm" name="building_id" aria-label="Building" onchange="this.form.submit()">
+      {% for b in buildings %}<option value="{{ b.id }}" {{ 'selected' if b.id==building_id }}>{{ b.name }}</option>{% endfor %}
+    </select>
+  </form>
+  {% if current %}<small class="text-body-secondary">Latest reading {{ current.recorded_at|localtime }}</small>{% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  {% set cards=[('temperature','bi-thermometer-half','temperature'),('humidity','bi-droplet','humidity'),('air_quality','bi-wind','air-quality'),('energy_usage','bi-lightning-charge','energy')] %}
+  {% for key,icon,tone in cards %}{% set item=conditions.get(key) %}
+    <div class="col-6 col-xl-3">
+      <div class="card h-100 environmental-summary-card {{ 'environmental-problem-card' if item and item.problem }}">
+        <div class="card-body d-flex gap-3 align-items-center">
+          <div class="summary-icon summary-icon-{{ tone }}"><i class="bi {{ icon }}"></i></div>
+          <div class="min-w-0">
+            <small class="text-body-secondary">{{ item.label if item else key|replace('_',' ')|title }}</small>
+            <div class="h5 mb-1">{% if item and item.value is not none %}{% if key=='air_quality' %}AQI {{ '%.0f'|format(item.value) }}{% else %}{{ '%.1f'|format(item.value) }}{{ item.unit }}{% endif %}{% else %}No Reading{% endif %}</div>
+            {% if item %}<span class="small environmental-condition text-{{ item.condition|status_class }}"><i class="bi {{ 'bi-exclamation-triangle-fill' if item.problem else 'bi-check-circle-fill' }}"></i> {{ item.summary }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3 mb-4 environmental-chart-grid">
+  {% set charts=[('temperatureChart','Temperature Trend','°C','temperature'),('humidityChart','Humidity Trend','%','humidity'),('airQualityChart','Air Quality Trend','AQI','air-quality'),('energyChart','Energy Usage','kWh','energy')] %}
+  {% for chart_id,title,unit,tone in charts %}
+    <div class="col-12 col-lg-6">
+      <div class="card h-100 environment-chart-card chart-tone-{{ tone }}">
+        <div class="card-header d-flex align-items-start justify-content-between gap-3">
+          <div><span class="section-eyebrow">Recent readings</span><h2 class="h6 mb-0 mt-1">{{ title }}</h2></div>
+          <span class="unit-badge">{{ unit }}</span>
+        </div>
+        <div class="card-body environment-chart-wrap"><canvas id="{{ chart_id }}" aria-label="{{ title }} chart"></canvas></div>
+      </div>
+    </div>
+  {% endfor %}
+  <script type="application/json" id="chartData">{{ {'labels': readings|map(attribute='recorded_at')|list, 'temperature': readings|map(attribute='temperature')|list, 'humidity':readings|map(attribute='humidity')|list, 'airQuality':readings|map(attribute='air_quality')|list, 'energy':readings|map(attribute='energy_usage')|list}|tojson }}</script>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><strong>Environmental Sensor Status</strong></div>
+  <div class="card-body border-bottom">
+    <div class="row g-3 text-center sensor-overview">
+      {% for label,value,tone in [('Total Sensors',sensor_counts.total,'primary'),('Normal Sensors',sensor_counts.normal,'success'),('Problem Sensors',sensor_counts.problem,'warning'),('Offline Sensors',sensor_counts.offline,'secondary')] %}
+        <div class="col-6 col-md-3"><div class="sensor-overview-value text-{{ tone }}">{{ value }}</div><small class="text-body-secondary">{{ label }}</small></div>
+      {% endfor %}
+    </div>
+  </div>
+  {% if not problems %}
+    <div class="card-body text-center py-4"><i class="bi bi-check-circle-fill text-success fs-3"></i><p class="mb-0 mt-2">All environmental sensors are working normally.</p></div>
+  {% else %}
+    <div class="table-responsive"><table class="table mb-0"><thead><tr><th>Sensor ID</th><th>Type</th><th>Building / Location</th><th>Current Reading</th><th>Expected Range</th><th>Status</th><th>Detected</th><th>Action</th></tr></thead><tbody>
+      {% for item in problems %}<tr>
+        <td>{{ item.sensor.sensor_code }}</td><td>{{ item.sensor.sensor_type }}</td><td>{{ buildings|selectattr('id','equalto',building_id)|map(attribute='name')|first }}<br><small class="text-body-secondary">{{ item.sensor.location }}</small></td>
+        <td>{% if item.value is none %}No Reading{% elif item.sensor.sensor_type=='Air Quality' %}AQI {{ '%.0f'|format(item.value) }}{% else %}{{ '%.1f'|format(item.value) }}{{ item.unit }}{% endif %}</td><td>{{ item.expected }}</td>
+        <td><span class="badge text-bg-{{ item.condition|status_class }}">{{ item.condition }}</span></td><td>{{ item.detected_at|localtime }}</td>
+        <td>{% if item.maintenance %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('core.maintenance_detail',maintenance_id=item.maintenance.id) }}">View {{ item.maintenance.request_code }}</a>{% elif g.user.role=='admin' %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.maintenance_create',sensor_id=item.sensor.id) }}">Add to Maintenance</a>{% else %}<form method="post" action="{{ url_for('core.sensor_request_maintenance',sensor_id=item.sensor.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="building_id" value="{{ building_id }}"><input type="hidden" name="priority" value="High"><input type="hidden" name="reason" value="{{ item.sensor.sensor_code }}: {{ item.summary }}; current {{ item.value }}{{ item.unit }}, expected {{ item.expected }}"><button class="btn btn-sm btn-outline-primary">Request Maintenance</button></form>{% endif %}</td>
+      </tr>{% endfor %}
+    </tbody></table></div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-header"><strong>View Sensors</strong></div>
+  <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Sensor ID</th><th>Type</th><th>Building</th><th>Location</th><th>Current Reading</th><th>Normal Range</th><th>Status</th><th>Last Updated</th><th>Action</th></tr></thead><tbody>
+    {% for item in sensor_rows %}<tr><td>{{ item.sensor.sensor_code }}</td><td>{{ item.sensor.sensor_type }}</td><td>{{ buildings|selectattr('id','equalto',building_id)|map(attribute='name')|first }}</td><td>{{ item.sensor.location }}</td><td>{% if item.value is none %}No Reading{% elif item.sensor.sensor_type=='Air Quality' %}AQI {{ '%.0f'|format(item.value) }}{% else %}{{ '%.1f'|format(item.value) }}{{ item.unit }}{% endif %}</td><td>{{ item.expected }}</td><td><span class="badge text-bg-{{ item.condition|status_class }}">{{ item.condition }}</span></td><td>{{ item.recorded_at|localtime }}</td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('core.sensor_detail',sensor_id=item.sensor.id) }}">View</a></td></tr>
+    {% else %}<tr><td colspan="9" class="empty-state">No environmental sensors are configured for this building.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div><h2 class="h5 mb-1">{{ 'Administration overview' if g.user.role == 'admin' else 'My work overview' }}</h2><p class="text-body-secondary small mb-0">Latest building and maintenance information</p></div>
+  {% if g.user.role == 'admin' %}<form method="get"><select class="form-select form-select-sm" name="building_id" onchange="this.form.submit()"><option value="">All Buildings</option>{% for b in buildings %}<option value="{{ b.id }}" {{ 'selected' if building_id == b.id }}>{{ b.name }}</option>{% endfor %}</select></form>{% endif %}
+</div>
+<div class="row g-3 mb-4">
+  {% if g.user.role == 'admin' %}
+    {% set card_data = [('Total Equipment', counts.total or 0, 'bi-fan', 'secondary'),('Operational Equipment', counts.normal or 0, 'bi-check-circle', 'success'),('Active Faults', cards.active_alerts, 'bi-exclamation-octagon', 'danger'),('In Progress', counts.in_progress or 0, 'bi-tools', 'primary'),('Pending Approval', cards.pending, 'bi-hourglass-split', 'warning')] %}
+  {% else %}
+    {% set card_data = [('Assigned Tasks', cards.assigned, 'bi-clipboard-check', 'secondary'),('In Progress', cards.in_progress, 'bi-tools', 'primary'),('Pending Requests', cards.pending, 'bi-hourglass-split', 'warning'),('Active Alerts', cards.active_alerts, 'bi-exclamation-triangle', 'danger')] %}
+  {% endif %}
+  {% for label,value,icon,colour in card_data %}<div class="col-6 col-lg"><div class="card h-100"><div class="card-body"><div class="d-flex align-items-start justify-content-between"><span class="text-body-secondary small text-uppercase">{{ label }}</span><i class="bi {{ icon }} text-{{ colour }}"></i></div><div class="display-6 fs-3 fw-semibold mt-2">{{ value }}</div>{% if label == 'Pending Approval' %}<a class="stretched-link" href="{{ url_for('admin.approvals',status='Pending') }}" aria-label="View pending approvals"></a>{% endif %}</div></div></div>{% endfor %}
+</div>
+<h2 class="h6 mb-3">Environmental Summary</h2>
+<div class="row g-3 mb-4">
+  {% set env_cards = [('temperature','bi-thermometer-half','temperature'),('humidity','bi-droplet','humidity'),('air_quality','bi-wind','air-quality'),('energy_usage','bi-lightning-charge','energy')] %}
+  {% for key,icon,tone in env_cards %}{% set item=environment_conditions.get(key) %}
+    <div class="col-6 col-xl-3">
+      <div class="card h-100 environmental-summary-card {{ 'environmental-problem-card' if item and item.problem }}">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="summary-icon summary-icon-{{ tone }}"><i class="bi {{ icon }}"></i></div>
+          <div class="min-w-0"><small class="text-body-secondary">{{ item.label if item else key|replace('_',' ')|title }}</small><div class="h5 mb-1">{% if item and item.value is not none %}{% if key=='air_quality' %}AQI {{ '%.0f'|format(item.value) }}{% else %}{{ '%.1f'|format(item.value) }}{{ item.unit }}{% endif %}{% else %}No Reading{% endif %}</div>{% if item %}<span class="small environmental-condition text-{{ item.condition|status_class }}"><i class="bi {{ 'bi-exclamation-triangle-fill' if item.problem else 'bi-check-circle-fill' }}"></i> {{ item.summary }}</span>{% endif %}</div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% if g.user.role == 'admin' %}
+  <div class="card mb-4 building-status-card">
+    <div class="card-header d-flex align-items-start justify-content-between gap-3">
+      <div>
+        <span class="section-eyebrow">Equipment health</span>
+        <h2 class="h6 mb-0 mt-1">Building Status</h2>
+      </div>
+      <span class="live-data-label"><span aria-hidden="true"></span>Simulated live data</span>
+    </div>
+    <div class="card-body">
+      <div class="building-status-layout">
+        <div class="building-status-chart"><canvas id="buildingStatusChart" aria-label="Building equipment health chart"></canvas></div>
+        <div class="building-status-legend" aria-label="Building equipment health counts">
+          <div class="status-legend-item"><span class="status-dot status-normal"></span><span>Normal</span><strong>{{ counts.normal or 0 }}</strong></div>
+          <div class="status-legend-item"><span class="status-dot status-warning"></span><span>Warning</span><strong>{{ counts.in_progress or 0 }}</strong></div>
+          <div class="status-legend-item"><span class="status-dot status-critical"></span><span>Critical</span><strong>{{ counts.critical or 0 }}</strong></div>
+        </div>
+      </div>
+      <script type="application/json" id="buildingStatusData">{{ {'normal': counts.normal or 0, 'warning': counts.in_progress or 0, 'critical': counts.critical or 0}|tojson }}</script>
+    </div>
+  </div>
+{% endif %}
+<div class="row g-3">
+  <div class="col-xl-7"><div class="card h-100"><div class="card-header d-flex justify-content-between align-items-center"><strong>Recent Maintenance</strong><a class="small" href="{{ url_for('core.maintenance_list') }}">View All Maintenance{% if recent_maintenance|length > 3 %} +{{ recent_maintenance|length - 3 }}{% endif %}</a></div><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Request</th><th>Equipment</th><th>Issue</th><th>Priority</th><th>Status</th><th>Location</th></tr></thead><tbody>{% for m in recent_maintenance[:3] %}<tr class="click-row" data-href="{{ url_for('core.maintenance_detail',maintenance_id=m.id) }}"><td>{{ m.request_code }}</td><td>{{ m.asset_code }}</td><td>{{ m.issue }}</td><td><span class="badge text-bg-{{ m.priority|status_class }}">{{ m.priority }}</span></td><td><span class="badge text-bg-{{ m.status|status_class }}">{{ m.status }}</span></td><td>{{ m.asset_location }}</td></tr>{% else %}<tr><td colspan="6" class="empty-state">No maintenance records.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-xl-5"><div class="card mb-3"><div class="card-header d-flex justify-content-between"><strong>Active Alerts</strong><a class="small" href="{{ url_for('core.alerts') }}">Manage All Alerts</a></div><div class="list-group list-group-flush">{% for a in alerts %}<a class="list-group-item list-group-item-action d-flex justify-content-between gap-2" href="{{ url_for('core.alert_detail',alert_id=a.id) }}"><span><strong class="d-block small">{{ a.alert_type }}</strong><small class="text-body-secondary">{{ a.building_name }} · {{ a.location }}</small></span><span class="badge text-bg-{{ a.severity|status_class }} align-self-center">{{ a.severity }}</span></a>{% else %}<div class="empty-state"><i class="bi bi-check-circle text-success"></i> No active alerts.</div>{% endfor %}</div></div>
+    {% if g.user.role == 'admin' %}<div class="card"><div class="card-header d-flex justify-content-between"><strong>Recent Staff Activity</strong><a class="small" href="{{ url_for('admin.reports',report_type='activity') }}">View All Activity</a></div><div class="list-group list-group-flush">{% for item in activities %}<div class="list-group-item"><div class="small">{{ item.description }}</div><small class="text-body-secondary">{{ item.created_at|localtime }}</small></div>{% else %}<div class="empty-state">No recent activity.</div>{% endfor %}</div></div>{% else %}<div class="card"><div class="card-header d-flex justify-content-between"><strong>My Recent Requests</strong><a class="small" href="{{ url_for('core.my_requests') }}">View all</a></div><div class="list-group list-group-flush">{% for item in my_requests %}<div class="list-group-item d-flex justify-content-between"><span><strong class="small">{{ item.request_code }}</strong><br><small>{{ item.request_type }}</small></span><span class="badge text-bg-{{ item.status|status_class }} align-self-center">{{ item.status }}</span></div>{% else %}<div class="empty-state">No requests submitted.</div>{% endfor %}</div></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

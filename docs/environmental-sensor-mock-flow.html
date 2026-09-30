@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Environmental Sensor Mock Flow</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --canvas: light-dark(#f5f7fa, #0f172a);
+      --surface: light-dark(#ffffff, #172033);
+      --surface-soft: light-dark(#f7f9fc, #1e293b);
+      --text: light-dark(#172033, #e5edf7);
+      --muted: light-dark(#64748b, #94a3b8);
+      --border: light-dark(#d9e1ea, #334155);
+      --blue: #2563eb;
+      --green: #16a34a;
+      --orange: #d97706;
+      --red: #dc2626;
+      --grey: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--text);
+      font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main { width: min(1180px, calc(100% - 32px)); margin: 32px auto 56px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 6px; font-size: 25px; }
+    h2 { margin: 0 0 16px; font-size: 18px; }
+    h3 { margin-bottom: 5px; font-size: 15px; }
+    .lead { color: var(--muted); margin-bottom: 28px; }
+    .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .frame, .state, .flow-step {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+    .frame { padding: 20px; margin-bottom: 22px; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .select { min-width: 180px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+    .stat { padding: 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-soft); }
+    .stat strong { display: block; margin-top: 4px; font-size: 23px; }
+    .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .state { padding: 16px; border-top: 4px solid var(--green); }
+    .state.warning { border-top-color: var(--orange); }
+    .state.offline { border-top-color: var(--grey); }
+    .state-head, .row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .reading { margin: 13px 0 4px; font-size: 26px; font-weight: 750; }
+    .muted { color: var(--muted); }
+    .badge { display: inline-flex; padding: 3px 8px; border-radius: 999px; color: white; font-size: 11px; font-weight: 700; }
+    .online, .normal { background: var(--green); }
+    .warn { background: var(--orange); }
+    .critical { background: var(--red); }
+    .off { background: var(--grey); }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    th, td { padding: 11px 9px; border-bottom: 1px solid var(--border); text-align: left; }
+    th { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+    .button { display: inline-block; padding: 7px 10px; border: 1px solid var(--blue); border-radius: 7px; color: var(--blue); font-weight: 650; }
+    .button.solid { color: white; background: var(--blue); }
+    .flow { display: grid; grid-template-columns: 1fr 34px 1fr 34px 1fr 34px 1fr; align-items: stretch; }
+    .flow-step { padding: 16px; min-height: 138px; }
+    .flow-step strong { display: block; margin: 7px 0; }
+    .arrow { display: grid; place-items: center; color: var(--blue); font-size: 24px; }
+    .rule-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 24px; margin: 0; padding-left: 18px; }
+    .note { margin-top: 14px; padding: 11px 13px; border-left: 3px solid var(--blue); background: var(--surface-soft); color: var(--muted); }
+    @media (max-width: 800px) {
+      .stats, .states { grid-template-columns: repeat(2, 1fr); }
+      .flow { grid-template-columns: 1fr; }
+      .arrow { min-height: 32px; transform: rotate(90deg); }
+      .table-wrap { overflow-x: auto; }
+      table { min-width: 760px; }
+    }
+    @media (max-width: 520px) {
+      main { width: min(100% - 20px, 1180px); margin-top: 18px; }
+      .stats, .states, .rule-list { grid-template-columns: 1fr; }
+      .toolbar { align-items: flex-start; flex-direction: column; }
+      .select { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Environmental Sensor Logic — Wireframe & Mock Flow</h1>
+  <p class="lead">UI-only reference for the existing Dashboard, Environment, Sensor Detail, Maintenance, and Approval screens.</p>
+
+  <section class="frame">
+    <div class="toolbar">
+      <div><div class="eyebrow">Environment page</div><h2>Environmental Monitoring</h2></div>
+      <div class="select">Building A ▾</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="muted">Total Sensors</span><strong>4</strong></div>
+      <div class="stat"><span class="muted">Online Sensors</span><strong>3</strong></div>
+      <div class="stat"><span class="muted">Problems</span><strong>1</strong></div>
+      <div class="stat"><span class="muted">Offline</span><strong>1</strong></div>
+    </div>
+    <div class="states">
+      <article class="state">
+        <div class="state-head"><strong>Temperature</strong><span class="badge online">Online</span></div>
+        <div class="reading">24.2°C</div>
+        <span class="badge normal">Normal</span>
+        <p class="muted">Expected 18–27°C</p>
+      </article>
+      <article class="state warning">
+        <div class="state-head"><strong>Humidity</strong><span class="badge online">Online</span></div>
+        <div class="reading">72.0%</div>
+        <span class="badge warn">Warning</span>
+        <p class="muted">Expected 35–65%</p>
+      </article>
+      <article class="state offline">
+        <div class="state-head"><strong>Air Quality</strong><span class="badge off">Offline</span></div>
+        <div class="reading">AQI 0</div>
+        <span class="muted">Condition —</span>
+        <p class="muted">Chart records a gap, not a zero reading.</p>
+      </article>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Sensor</th><th>Reading</th><th>Expected / limits</th><th>Connection</th><th>Condition</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>SNS-001 · Temperature</td><td>24.2°C</td><td>18–27°C</td><td><span class="badge online">Online</span></td><td><span class="badge normal">Normal</span></td><td><span class="button">View</span></td></tr>
+          <tr><td>SNS-002 · Humidity</td><td>72.0%</td><td>35–65%</td><td><span class="badge online">Online</span></td><td><span class="badge warn">Warning</span></td><td><span class="button">View</span></td></tr>
+          <tr><td>SNS-003 · Air Quality</td><td>AQI 0</td><td>Warn 100 · Critical 150</td><td><span class="badge off">Offline</span></td><td>—</td><td><span class="button">View</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="frame">
+    <div class="eyebrow">Admin sensor detail</div>
+    <h2>SNS-003 · Air Quality</h2>
+    <div class="states">
+      <article class="state offline">
+        <h3>Current state</h3>
+        <p><strong>Connection</strong><br><span class="badge off">Offline</span></p>
+        <p><strong>Condition</strong><br>—</p>
+        <p><strong>Current reading</strong><br>AQI 0</p>
+      </article>
+      <article class="state offline">
+        <h3>Active issue</h3>
+        <p><strong>Alert</strong><br>Sensor Offline</p>
+        <p><strong>Maintenance</strong><br>No active request</p>
+        <span class="button">Add to Maintenance</span>
+      </article>
+      <article class="state offline">
+        <h3>Admin control</h3>
+        <p class="muted">Online sensors show this confirmation action.</p>
+        <span class="button">Mark Offline</span>
+        <p class="muted">“Mark this sensor as Offline?”</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="frame">
+    <div class="eyebrow">Mock workflow</div>
+    <h2>Offline → Maintenance → Approval → Online</h2>
+    <div class="flow">
+      <article class="flow-step"><span class="badge off">Offline</span><strong>1. Admin marks offline</strong><span class="muted">Connection becomes Offline, condition is cleared, UI shows 0, and a Sensor Offline alert is created.</span></article>
+      <div class="arrow">→</div>
+      <article class="flow-step"><span class="badge warn">Open</span><strong>2. Maintenance work</strong><span class="muted">Admin creates/assigns maintenance. Staff starts work, records notes, then submits completion.</span></article>
+      <div class="arrow">→</div>
+      <article class="flow-step"><span class="badge" style="background:var(--blue)">Pending</span><strong>3. Admin review</strong><span class="muted">Approval is transactional. Rejection keeps work open; approval completes the repair.</span></article>
+      <div class="arrow">→</div>
+      <article class="flow-step"><span class="badge normal">Normal</span><strong>4. Sensor recovers</strong><span class="muted">Connection becomes Online, a normal reading is stored, related alerts clear, and charts continue with history intact.</span></article>
+    </div>
+  </section>
+
+  <section class="frame">
+    <div class="eyebrow">State rules</div>
+    <h2>Condition evaluation</h2>
+    <ul class="rule-list">
+      <li>Temperature: up to 3°C outside range = Warning; beyond 3°C = Critical.</li>
+      <li>Humidity: up to 10 percentage points outside range = Warning; beyond 10 = Critical.</li>
+      <li>AQI and energy use the Admin-configured Warning and Critical limits.</li>
+      <li>Automatic readings use small random walks; 8% are Warning and 2% are Critical.</li>
+      <li>Offline is a connection state, never an environmental condition.</li>
+      <li>Offline metrics are stored as null chart gaps while the current UI displays 0.</li>
+    </ul>
+    <div class="note">This wireframe documents the implemented flow; it does not replace or redesign the application templates.</div>
+  </section>
+</main>
+</body>
+</html>
