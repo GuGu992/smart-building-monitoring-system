@@ -84,7 +84,8 @@ a:hover { color: var(--app-primary-hover); }
   width: 248px !important;
   position: fixed;
   inset: 0 auto 0 0;
-  z-index: 1040;
+  /* Keep the offcanvas panel above Bootstrap's z-index: 1040 backdrop. */
+  z-index: 1045;
   --bs-offcanvas-bg: var(--sidebar-bg);
   --bs-offcanvas-color: var(--text-primary);
   color: var(--text-primary);
@@ -580,7 +581,10 @@ a:hover { color: var(--app-primary-hover); }
 
 @media (max-width: 991.98px) {
   .app-shell { margin-left: 0; }
-  .sidebar { position: fixed; }
+  .sidebar {
+    position: fixed;
+    max-width: calc(100vw - 3rem);
+  }
   .topbar { padding-inline: 1rem; }
 }
 
